@@ -59,7 +59,14 @@ login() {
      cli-proxy-api ./CLIProxyAPI -antigravity-login -no-browser"
 }
 
-up() { remote up -d; remote ps; }
+# docker молча создаёт каталог на месте отсутствующего файла бинд-маунта, и приложение
+# стартует с пустым конфигом. Каталог потом принадлежит root, руками его не удалить.
+up() {
+  ssh "$HOST" "test -f $RPATH/config.yaml && test -f $RPATH/.env" \
+    || { echo "на сервере нет config.yaml или .env — сначала ./sync.sh conf" >&2; exit 1; }
+  remote up -d
+  remote ps
+}
 
 case "${1:-all}" in
   code) code_push ;;
