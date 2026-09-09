@@ -1,7 +1,17 @@
 # Конфиг CLIProxyAPI. Скопируй в config.yaml — тот в .gitignore, потому что в нём ключи.
 # Полный список опций — в config.example.yaml апстрима.
 
+# внутри контейнера всегда 8317, наружу его отдаёт docker-compose на 228
 port: 8317
+
+# HTTPS силами самого приложения, без отдельного реверс-прокси.
+# Каталог с сертификатом монтируется из CERT_DIR как /certs.
+# Нет сертификата — поставь enable: false, тогда будет голый http,
+# и ключ из api-keys поедет по сети открытым текстом.
+tls:
+  enable: true
+  cert: "/certs/cert.pem"
+  key: "/certs/key.pem"
 
 # каталог с OAuth-токенами аккаунтов; смонтирован из ./auths
 auth-dir: "/root/.cli-proxy-api"
@@ -11,7 +21,6 @@ api-keys:
   - "sk-придумай-строку"
 
 # админский API. Пустой secret-key выключает его целиком.
-# Включишь — не забудь, что за caddy запросы приходят не с localhost.
 remote-management:
   allow-remote: false
   secret-key: ""

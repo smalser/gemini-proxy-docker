@@ -1,32 +1,12 @@
 services:
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      DOMAIN: ${DOMAIN}
-      TLS_CERT: ${TLS_CERT:-/certs/cert.pem}
-      TLS_KEY: ${TLS_KEY:-/certs/key.pem}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ${CERT_DIR:-./certs}:/certs:ro
-      - caddy_data:/data
-    depends_on:
-      - cli-proxy-api
-
   cli-proxy-api:
     image: eceasy/cli-proxy-api:${CP_VERSION:-latest}
     restart: unless-stopped
-    # наружу не смотрит: снаружи доступ только через caddy
-    expose:
-      - "8317"
+    ports:
+      - "228:8317"
     volumes:
       - ./config.yaml:/CLIProxyAPI/config.yaml
       # OAuth-токены аккаунтов; без этого каталога логин придётся повторять после каждого рестарта
       - ./auths:/root/.cli-proxy-api
       - ./logs:/CLIProxyAPI/logs
-
-volumes:
-  caddy_data:
+      - ${CERT_DIR:-./certs}:/certs:ro
