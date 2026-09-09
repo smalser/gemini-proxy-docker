@@ -1,0 +1,19 @@
+# Конфиг CLIProxyAPI. Скопируй в config.yaml — тот в .gitignore, потому что в нём ключи.
+# Полный список опций — в config.example.yaml апстрима.
+
+port: 8317
+
+# каталог с OAuth-токенами аккаунтов; смонтирован из ./auths
+auth-dir: "/root/.cli-proxy-api"
+
+# ключи, которыми клиенты авторизуются у тебя; их вписывают агенты как api_key
+api-keys:
+  - "sk-придумай-строку"
+
+# админский API. Пустой secret-key выключает его целиком.
+# Включишь — не забудь, что за caddy запросы приходят не с localhost.
+remote-management:
+  allow-remote: false
+  secret-key: ""
+
+debug: false

@@ -5,5 +5,5 @@
 {$DOMAIN} {
 	tls {$TLS_CERT:/certs/cert.pem} {$TLS_KEY:/certs/key.pem}
 	encode zstd gzip
-	reverse_proxy gemini-balance:8000
+	reverse_proxy cli-proxy-api:8317
 }

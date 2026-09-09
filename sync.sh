@@ -3,16 +3,18 @@
 #
 #   ./sync.sh              # без аргумента: залить файлы и поднять
 #   ./sync.sh code         # только залить файлы, ничего не трогать
+#   ./sync.sh conf         # отправить .env и config.yaml (только по явной команде)
+#   ./sync.sh login        # OAuth-логин гугл-аккаунта на сервере через ssh-туннель
 #   ./sync.sh up           # поднять то, что уже лежит на сервере
-#   ./sync.sh update       # подтянуть свежий образ gemini-balance и перезапустить
+#   ./sync.sh update       # подтянуть свежий образ CLIProxyAPI и перезапустить
 #   ./sync.sh restart      # перезапустить контейнеры
 #   ./sync.sh logs         # хвост логов, Ctrl-C для выхода
-#   ./sync.sh env          # отправить локальный .env на сервер (только по явной команде)
 #
-# .env сам по себе не едет: на сервере свои ключи и свой домен. Команда env
-# перезаписывает серверный файл целиком — зови её осознанно.
+# .env и config.yaml сами по себе не едут: в них ключи, и на сервере они могут отличаться.
+# Команда conf перезаписывает серверные файлы целиком — зови её осознанно.
 # Сертификаты не едут никогда, они лежат на сервере в каталоге из CERT_DIR.
-# База в data/ тоже остаётся на сервере: там ключи, логи и правки из веб-морды.
+# auths/ с OAuth-токенами тоже остаётся на сервере: увезёшь копию — два инстанса
+# начнут обновлять один и тот же refresh-токен и вышибут друг друга.
 #
 # GPROXY_REMOTE в .env — корень проекта на сервере, вида host:~/gemini-proxy-docker/
 set -euo pipefail
@@ -29,6 +31,9 @@ REMOTE="${REMOTE%/}"
 HOST="${REMOTE%%:*}"
 RPATH="${REMOTE#*:}"
 
+# порт, на который Google возвращает OAuth-колбэк для Antigravity
+CALLBACK_PORT=51121
+
 # без --info=progress2: на macOS rsync — это openrsync, он такого флага не знает
 RS=(rsync -avz)
 
@@ -36,24 +41,34 @@ remote() { ssh "$HOST" "cd $RPATH && docker compose $*"; }
 
 code_push() {
   ssh "$HOST" "mkdir -p $RPATH"
-  "${RS[@]}" docker-compose.yml Caddyfile .env.example README.md sync.sh "$REMOTE/"
+  "${RS[@]}" docker-compose.yml Caddyfile .env.example config.example.yaml README.md sync.sh "$REMOTE/"
 }
 
-# .env отдельной командой: он с секретами и на сервере может отличаться от локального
-env_push() {
+conf_push() {
   [ -f .env ] || { echo "локального .env нет" >&2; exit 1; }
-  "${RS[@]}" .env "$REMOTE/.env"
+  [ -f config.yaml ] || { echo "локального config.yaml нет" >&2; exit 1; }
+  "${RS[@]}" .env config.yaml "$REMOTE/"
+}
+
+# Логин идёт в контейнере на сервере, а браузер у тебя. Туннель прокидывает твой
+# localhost:51121 на серверный, поэтому ссылка из вывода открывается как есть.
+login() {
+  echo "открой напечатанную ссылку в своём браузере, колбэк придёт по туннелю"
+  ssh -t -L "$CALLBACK_PORT:localhost:$CALLBACK_PORT" "$HOST" \
+    "cd $RPATH && docker compose run --rm -p 127.0.0.1:$CALLBACK_PORT:$CALLBACK_PORT \
+     cli-proxy-api ./CLIProxyAPI -antigravity-login -no-browser"
 }
 
 up() { remote up -d; remote ps; }
 
 case "${1:-all}" in
   code) code_push ;;
-  env) env_push ;;
+  conf) conf_push ;;
+  login) login ;;
   up) up ;;
   update) remote pull; up ;;
   restart) remote restart; remote ps ;;
   logs) remote logs -f --tail=100 ;;
   all) code_push; up ;;
-  *) echo "usage: $0 [all|code|env|up|update|restart|logs]" >&2; exit 2 ;;
+  *) echo "usage: $0 [all|code|conf|login|up|update|restart|logs]" >&2; exit 2 ;;
 esac

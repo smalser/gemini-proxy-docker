@@ -3,3 +3,6 @@ certs/
 .DS_Store
 .idea/
 data/
+config.yaml
+auths/
+logs/

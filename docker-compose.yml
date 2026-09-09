@@ -14,23 +14,19 @@ services:
       - ${CERT_DIR:-./certs}:/certs:ro
       - caddy_data:/data
     depends_on:
-      - gemini-balance
+      - cli-proxy-api
 
-  gemini-balance:
-    image: ghcr.io/snailyp/gemini-balance:${GB_VERSION:-latest}
+  cli-proxy-api:
+    image: eceasy/cli-proxy-api:${CP_VERSION:-latest}
     restart: unless-stopped
     # наружу не смотрит: снаружи доступ только через caddy
     expose:
-      - "8000"
-    env_file: .env
+      - "8317"
     volumes:
-      - ./data:/app/data
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; exit(0) if requests.get('http://localhost:8000/health').status_code == 200 else exit(1)\""]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+      - ./config.yaml:/CLIProxyAPI/config.yaml
+      # OAuth-токены аккаунтов; без этого каталога логин придётся повторять после каждого рестарта
+      - ./auths:/root/.cli-proxy-api
+      - ./logs:/CLIProxyAPI/logs
 
 volumes:
   caddy_data:
