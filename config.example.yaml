@@ -26,4 +26,8 @@ remote-management:
   allow-remote: false
   secret-key: ""
 
+# исходящий прокси до Google; поддерживает http, https и socks5.
+# Пусто — запросы идут напрямую.
+proxy-url: ""
+
 debug: false
