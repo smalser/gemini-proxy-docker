@@ -30,4 +30,7 @@ remote-management:
 # Пусто — запросы идут напрямую.
 proxy-url: ""
 
+# счётчик запросов и токенов в памяти, читается через management API
+usage-statistics-enabled: false
+
 debug: false
