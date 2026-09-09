@@ -1,0 +1,59 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      TLS_CERT: ${TLS_CERT:-/certs/cert.pem}
+      TLS_KEY: ${TLS_KEY:-/certs/key.pem}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${CERT_DIR:-./certs}:/certs:ro
+      - caddy_data:/data
+    depends_on:
+      - web
+
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        UPSTREAM_REF: ${UPSTREAM_REF:-main}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_ANON_SUPABASE_KEY: ${NEXT_PUBLIC_ANON_SUPABASE_KEY}
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_ANON_SUPABASE_KEY: ${NEXT_PUBLIC_ANON_SUPABASE_KEY}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-}
+
+  # standalone Hono-прокси: то же самое, что /v1 и /api/gproxy в web.
+  # поднимается только явно: docker compose --profile api up -d
+  api:
+    profiles: ["api"]
+    build:
+      context: .
+      target: api
+      args:
+        UPSTREAM_REF: ${UPSTREAM_REF:-main}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9090:9090"
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-}
+
+volumes:
+  caddy_data:
