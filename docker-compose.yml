@@ -14,46 +14,23 @@ services:
       - ${CERT_DIR:-./certs}:/certs:ro
       - caddy_data:/data
     depends_on:
-      - web
+      - gemini-balance
 
-  web:
-    build:
-      context: .
-      target: web
-      args:
-        UPSTREAM_REF: ${UPSTREAM_REF:-main}
-        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-        NEXT_PUBLIC_ANON_SUPABASE_KEY: ${NEXT_PUBLIC_ANON_SUPABASE_KEY}
+  gemini-balance:
+    image: ghcr.io/snailyp/gemini-balance:${GB_VERSION:-latest}
     restart: unless-stopped
+    # наружу не смотрит: снаружи доступ только через caddy
     expose:
-      - "3000"
-    environment:
-      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-      NEXT_PUBLIC_ANON_SUPABASE_KEY: ${NEXT_PUBLIC_ANON_SUPABASE_KEY}
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
-      HTTP_PROXY: ${HTTP_PROXY:-}
-      HTTPS_PROXY: ${HTTPS_PROXY:-}
-      NO_PROXY: ${NO_PROXY:-}
-
-  # standalone Hono-прокси: то же самое, что /v1 и /api/gproxy в web.
-  # поднимается только явно: docker compose --profile api up -d
-  api:
-    profiles: ["api"]
-    build:
-      context: .
-      target: api
-      args:
-        UPSTREAM_REF: ${UPSTREAM_REF:-main}
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:9090:9090"
-    environment:
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
-      HTTP_PROXY: ${HTTP_PROXY:-}
-      HTTPS_PROXY: ${HTTPS_PROXY:-}
-      NO_PROXY: ${NO_PROXY:-}
+      - "8000"
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import requests; exit(0) if requests.get('http://localhost:8000/health').status_code == 200 else exit(1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   caddy_data:
