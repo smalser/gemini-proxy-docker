@@ -34,8 +34,9 @@ services:
         EXPOSE 3000
         CMD ["pnpm", "--filter", "server", "start"]
     restart: unless-stopped
-    ports:
-      - "2288:3000"
+    # порт наружу отдаёт caddy: сам сервер умеет только http
+    expose:
+      - "3000"
     environment:
       GEMINI_SECURE_1PSID: ${GEMINI_SECURE_1PSID}
       GEMINI_SECURE_1PSIDTS: ${GEMINI_SECURE_1PSIDTS}
@@ -49,5 +50,22 @@ services:
     volumes:
       - gemini_web_data:/app/cookies_dir
 
+  # TLS только для gemini-web; cli-proxy-api шифрует сам
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "2288:2288"
+    environment:
+      TLS_CERT: ${TLS_CERT:-/certs/fullchain.pem}
+      TLS_KEY: ${TLS_KEY:-/certs/privkey.pem}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${CERT_DIR:-./certs}:/certs:ro
+      - caddy_data:/data
+    depends_on:
+      - gemini-web
+
 volumes:
   gemini_web_data:
+  caddy_data:

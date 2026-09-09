@@ -41,7 +41,7 @@ remote() { ssh "$HOST" "cd $RPATH && docker compose $*"; }
 
 code_push() {
   ssh "$HOST" "mkdir -p $RPATH"
-  "${RS[@]}" docker-compose.yml .env.example config.example.yaml README.md sync.sh "$REMOTE/"
+  "${RS[@]}" docker-compose.yml Caddyfile .env.example config.example.yaml README.md sync.sh "$REMOTE/"
 }
 
 conf_push() {

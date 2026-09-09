@@ -1,0 +1,11 @@
+{
+	admin off
+	# сертификат свой, ACME не нужен
+	auto_https off
+}
+
+# gemini-web умеет только голый http, поэтому TLS для него терминирует caddy
+:2288 {
+	tls {$TLS_CERT:/certs/fullchain.pem} {$TLS_KEY:/certs/privkey.pem}
+	reverse_proxy gemini-web:3000
+}
