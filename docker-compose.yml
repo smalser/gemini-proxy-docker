@@ -10,3 +10,44 @@ services:
       - ./auths:/root/.cli-proxy-api
       - ./logs:/CLIProxyAPI/logs
       - ${CERT_DIR:-./certs}:/certs:ro
+
+  # Веб-версия Gemini через куки браузера. Отдельный вход на 2288, к cli-proxy-api
+  # отношения не имеет: другой аккаунт, другой способ авторизации, свои модели.
+  # Готового образа нет, docker собирает прямо из репозитория по закреплённому коммиту.
+  gemini-web:
+    build:
+      context: https://github.com/qutek/gemini-web-api.git#${GW_REF:-c38f347b2cd5ec080276acb7036fba36063724c7}
+      # Свой Dockerfile вместо апстримового: тот ставит последний pnpm, а он падает
+      # на ERR_PNPM_IGNORED_BUILDS из-за esbuild. Лечится одной переменной.
+      dockerfile_inline: |
+        FROM node:20-slim AS builder
+        RUN npm install -g pnpm
+        ENV PNPM_CONFIG_STRICT_DEP_BUILDS=false
+        WORKDIR /app
+        COPY . .
+        RUN pnpm install --frozen-lockfile && pnpm build
+        FROM node:20-slim AS runner
+        RUN npm install -g pnpm
+        WORKDIR /app
+        COPY --from=builder /app /app
+        ENV NODE_ENV=production PORT=3000 GEMINI_COOKIE_PATH=/app/cookies_dir
+        EXPOSE 3000
+        CMD ["pnpm", "--filter", "server", "start"]
+    restart: unless-stopped
+    ports:
+      - "2288:3000"
+    environment:
+      GEMINI_SECURE_1PSID: ${GEMINI_SECURE_1PSID}
+      GEMINI_SECURE_1PSIDTS: ${GEMINI_SECURE_1PSIDTS}
+      # пусто — ходит с адреса сервера; куки лучше отдавать с той же страны, где их выдали
+      GEMINI_PROXY: ${GEMINI_PROXY:-}
+      # без API_KEY сервер пускает всех, без ADMIN_SECRET_KEY любой может подменить аккаунт
+      API_KEY: ${GW_API_KEY}
+      ADMIN_SECRET_KEY: ${GW_ADMIN_KEY}
+      GEMINI_COOKIE_PATH: /app/cookies_dir
+      PORT: 3000
+    volumes:
+      - gemini_web_data:/app/cookies_dir
+
+volumes:
+  gemini_web_data:
